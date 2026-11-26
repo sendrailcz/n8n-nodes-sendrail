@@ -1,0 +1,32 @@
+{
+  "name": "n8n-nodes-sendrail",
+  "version": "0.1.0",
+  "description": "n8n node for Sendrail: send SMS and verification codes (OTP), check numbers, manage opt-outs and receive delivery and reply events",
+  "keywords": ["n8n-community-node-package", "sms", "otp", "sendrail", "verification"],
+  "license": "MIT",
+  "homepage": "https://sendrail.cz/n8n",
+  "author": { "name": "Sendrail", "email": "info@sendrail.cz" },
+  "repository": { "type": "git", "url": "git+https://github.com/sendrailcz/n8n-nodes-sendrail.git" },
+  "bugs": { "url": "https://github.com/sendrailcz/n8n-nodes-sendrail/issues" },
+  "engines": { "node": ">=20.15" },
+  "main": "index.js",
+  "scripts": {
+    "build": "rm -rf dist && tsc && cp nodes/Sendrail/*.svg dist/nodes/Sendrail/ && cp nodes/Sendrail/*.svg dist/credentials/",
+    "test": "npm run build && node test/smoke.js",
+    "prepublishOnly": "npm test"
+  },
+  "files": ["dist"],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": ["dist/credentials/SendrailApi.credentials.js"],
+    "nodes": ["dist/nodes/Sendrail/Sendrail.node.js", "dist/nodes/Sendrail/SendrailTrigger.node.js"]
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "n8n-workflow": "^2.0.0",
+    "typescript": "^5.6.0"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}
