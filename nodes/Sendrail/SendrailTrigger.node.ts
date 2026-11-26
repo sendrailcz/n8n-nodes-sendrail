@@ -12,7 +12,7 @@ export class SendrailTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Sendrail Trigger',
 		name: 'sendrailTrigger',
-		icon: 'file:sendrail.svg',
+		icon: 'file:sendrail.png',
 		group: ['trigger'],
 		version: 1,
 		subtitle: '={{$parameter["events"].join(", ")}}',

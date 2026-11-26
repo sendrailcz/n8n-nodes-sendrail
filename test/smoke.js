@@ -33,7 +33,7 @@ async function run(params, answer = { ok: true }, opts = {}) {
 
 (async () => {
 	for (const f of [...pkg.n8n.nodes, ...pkg.n8n.credentials]) ok(require('fs').existsSync(f), 'built file exists: ' + f);
-	ok(require('fs').existsSync('dist/nodes/Sendrail/sendrail.svg') && require('fs').existsSync('dist/credentials/sendrail.svg'), 'icons are copied');
+	ok(require('fs').existsSync('dist/nodes/Sendrail/sendrail.png') && require('fs').existsSync('dist/credentials/sendrail.png'), 'icons are copied');
 	const cred = new SendrailApi();
 	ok(cred.name === 'sendrailApi' && cred.authenticate.properties.headers.Authorization.includes('Bearer'), 'credential sends the key as a Bearer header');
 

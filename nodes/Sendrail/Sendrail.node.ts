@@ -40,7 +40,7 @@ export class Sendrail implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Sendrail',
 		name: 'sendrail',
-		icon: 'file:sendrail.svg',
+		icon: 'file:sendrail.png',
 		group: ['output'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',

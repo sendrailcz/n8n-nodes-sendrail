@@ -7,7 +7,7 @@ export class SendrailApi implements ICredentialType {
 
 	documentationUrl = 'https://sendrail.cz/docs';
 
-	icon = 'file:sendrail.svg' as const;
+	icon = 'file:sendrail.png' as const;
 
 	properties: INodeProperties[] = [
 		{

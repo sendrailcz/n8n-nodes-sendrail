@@ -11,7 +11,7 @@
   "engines": { "node": ">=20.15" },
   "main": "index.js",
   "scripts": {
-    "build": "rm -rf dist && tsc && cp nodes/Sendrail/*.svg dist/nodes/Sendrail/ && cp nodes/Sendrail/*.svg dist/credentials/",
+    "build": "rm -rf dist && tsc && cp nodes/Sendrail/*.png dist/nodes/Sendrail/ && cp nodes/Sendrail/*.png dist/credentials/",
     "test": "npm run build && node test/smoke.js",
     "prepublishOnly": "npm test"
   },
