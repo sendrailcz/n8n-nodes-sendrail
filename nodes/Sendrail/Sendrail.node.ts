@@ -28,6 +28,27 @@ async function call(
 	})) as IDataObject;
 }
 
+/** What Sendrail said in the body of a failed request: {"error": {"code", "message"}}. */
+export function sendrailError(error: unknown): { code: string; message: string } | undefined {
+	const e = error as IDataObject;
+	const response = (e.response ?? (e.cause as IDataObject | undefined)?.response) as IDataObject | undefined;
+	const candidates = [response?.data, response?.body, (e.context as IDataObject | undefined)?.data, e.error, e.description];
+	for (let body of candidates) {
+		if (typeof body === 'string') {
+			try {
+				body = JSON.parse(body);
+			} catch {
+				continue;
+			}
+		}
+		const inner = (body as IDataObject | undefined)?.error as IDataObject | undefined;
+		if (inner && typeof inner === 'object' && typeof inner.code === 'string') {
+			return { code: inner.code, message: String(inner.message ?? '') };
+		}
+	}
+	return undefined;
+}
+
 function variables(ctx: IExecuteFunctions, i: number): IDataObject | undefined {
 	const rows = (ctx.getNodeParameter('variables.values', i, []) as Array<{ name: string; value: string }>) || [];
 	if (!rows.length) return undefined;
@@ -424,12 +445,20 @@ export class Sendrail implements INodeType {
 					out.push({ json, pairedItem: { item: i } });
 				}
 			} catch (error) {
+				const said = sendrailError(error);
 				if (this.continueOnFail()) {
-					out.push({ json: { error: (error as Error).message }, pairedItem: { item: i } });
+					out.push({
+						json: said ? { error: said.message, code: said.code } : { error: (error as Error).message },
+						pairedItem: { item: i },
+					});
 					continue;
 				}
 				if (error instanceof NodeOperationError) throw error;
-				throw new NodeApiError(this.getNode(), error as JsonObject, { itemIndex: i });
+				throw new NodeApiError(
+					this.getNode(),
+					error as JsonObject,
+					said ? { itemIndex: i, message: said.message, description: `Sendrail error code: ${said.code}` } : { itemIndex: i },
+				);
 			}
 		}
 		return [out];

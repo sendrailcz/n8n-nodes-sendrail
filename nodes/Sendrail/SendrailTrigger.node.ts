@@ -76,6 +76,6 @@ export class SendrailTrigger implements INodeType {
 		}
 		// message.final carries the message under "message", the other events under "data"
 		const payload = (body.message || body.data || {}) as IDataObject;
-		return { workflowData: [this.helpers.returnJsonArray([{ event: body.event, ...payload }])] };
+		return { webhookResponse: { ok: true }, workflowData: [this.helpers.returnJsonArray([{ event: body.event, ...payload }])] };
 	}
 }

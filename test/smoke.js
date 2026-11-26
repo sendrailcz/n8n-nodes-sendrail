@@ -22,7 +22,7 @@ async function run(params, answer = { ok: true }, opts = {}) {
 		helpers: {
 			httpRequestWithAuthentication: async function (cred, req) {
 				calls.push({ cred, ...req });
-				if (opts.fail) throw Object.assign(new Error('Request failed with status code 402'), { httpCode: '402' });
+				if (opts.fail) throw Object.assign(new Error('Request failed with status code 402'), { httpCode: '402', ...(opts.failWith || {}) });
 				return answer;
 			},
 		},
@@ -72,6 +72,11 @@ async function run(params, answer = { ok: true }, opts = {}) {
 
 	r = await run({ resource: 'account', operation: 'get' }, {}, { fail: true, continueOnFail: true });
 	ok(r.out[0].json.error.includes('402'), 'an error becomes an item when the node may continue on fail');
+	r = await run({ resource: 'account', operation: 'get' }, {}, { fail: true, continueOnFail: true, failWith: { response: { data: { error: { code: 'insufficient_credit', message: 'Top up credit.' } } } } });
+	ok(r.out[0].json.code === 'insufficient_credit' && r.out[0].json.error === 'Top up credit.', "Sendrail's own error code and message are passed on");
+	let said = '';
+	try { await run({ resource: 'account', operation: 'get' }, {}, { fail: true, failWith: { context: { data: { error: { code: 'recipient_opted_out', message: 'Opted out.' } } } } }); } catch (e) { said = e.message + '|' + e.description; }
+	ok(said === 'Opted out.|Sendrail error code: recipient_opted_out', 'and shown in the error that stops the workflow');
 	let threw = false;
 	try { await run({ resource: 'account', operation: 'get' }, {}, { fail: true }); } catch (e) { threw = e.constructor.name === 'NodeApiError'; }
 	ok(threw, 'otherwise it stops the workflow with an API error');
