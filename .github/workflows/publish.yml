@@ -1,0 +1,25 @@
+# Publishes the package to npm with provenance (npm Trusted Publisher, no token stored here).
+# Runs when a tag vX.Y.Z is pushed; the tag has to match the version in package.json.
+name: Publish to npm
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest
+      - run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+      - run: npm ci --ignore-scripts
+      - run: npm publish --access public
