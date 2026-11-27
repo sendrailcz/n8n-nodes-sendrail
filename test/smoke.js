@@ -113,6 +113,15 @@ async function run(params, answer = { ok: true }, opts = {}) {
 	h = await hook({ events: ['message.received'] }, raw2, { 'x-sendrail-signature': sig2 }, 's3cret');
 	ok(h.result.workflowData[0][0].json.from === '+420777123456' && h.result.workflowData[0][0].json.event === 'message.received', 'trigger: a reply is passed on');
 
+	const stamped = (ts) => Buffer.from(JSON.stringify({ id: 'evt_msg_1', timestamp: ts, event: 'message.final', message: { id: 'msg_1', status: 'sent' } }));
+	const signed = (b) => ({ 'x-sendrail-signature': 'sha256=' + createHmac('sha256', 's3cret').update(b).digest('hex') });
+	let fresh = stamped(Math.floor(Date.now() / 1000));
+	h = await hook({ events: ['message.final'] }, fresh, signed(fresh), 's3cret');
+	ok(h.result.workflowData[0][0].json.event_id === 'evt_msg_1' && h.result.workflowData[0][0].json.id === 'msg_1', 'trigger: the event id is passed on next to the message');
+	const old = stamped(Math.floor(Date.now() / 1000) - 3600);
+	h = await hook({ events: ['message.final'] }, old, signed(old), 's3cret');
+	ok(h.sent.code === 401 && h.sent.body.error === 'stale timestamp' && !h.result.workflowData, 'trigger: a correctly signed but old event (a replay) is refused');
+
 	// trigger: registering the webhook at Sendrail
 	function life(server) {
 		const calls = [], data = {};

@@ -43,7 +43,7 @@ A key has one webhook address. Use a separate key for each workflow with this tr
 
 The output item has `event` and the fields of the message or event, for example `{"event": "message.final", "id": "msg_…", "status": "sent", …}`.
 
-Sendrail repeats a delivery that was not acknowledged, so the same event can arrive more than once.
+Sendrail repeats a delivery that was not acknowledged, so the same event can arrive more than once; `event_id` is the same for every repeat, use it to skip them. An event older than five minutes is refused, so a captured request cannot be played back later.
 
 ## Resources
 

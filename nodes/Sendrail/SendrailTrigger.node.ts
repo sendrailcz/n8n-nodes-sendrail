@@ -19,6 +19,8 @@ export function signatureOk(secret: string, rawBody: Buffer | string, header: un
 	return given.length === expected.length && timingSafeEqual(given, expected);
 }
 
+const MAX_AGE_SECONDS = 300;
+
 /** The key's webhook as Sendrail holds it: GET, PUT {url} or DELETE /v1/webhook. */
 async function keyWebhook(ctx: IHookFunctions, method: IHttpRequestMethods, url?: string): Promise<IDataObject> {
 	const credentials = await ctx.getCredentials('sendrailApi');
@@ -122,6 +124,11 @@ export class SendrailTrigger implements INodeType {
 		}
 
 		const body = this.getBodyData() as IDataObject;
+		// the time of the delivery attempt is inside the signed body: an old capture played back later is refused
+		if (typeof body.timestamp === 'number' && Math.abs(Date.now() / 1000 - body.timestamp) > MAX_AGE_SECONDS) {
+			res.status(401).json({ error: 'stale timestamp' });
+			return { noWebhookResponse: true };
+		}
 		const events = this.getNodeParameter('events', []) as string[];
 		if (!events.includes(String(body.event))) {
 			res.status(200).json({ ok: true, ignored: true });
@@ -129,6 +136,6 @@ export class SendrailTrigger implements INodeType {
 		}
 		// message.final carries the message under "message", the other events under "data"
 		const payload = (body.message || body.data || {}) as IDataObject;
-		return { webhookResponse: { ok: true }, workflowData: [this.helpers.returnJsonArray([{ event: body.event, ...payload }])] };
+		return { webhookResponse: { ok: true }, workflowData: [this.helpers.returnJsonArray([{ event: body.event, event_id: body.id, ...payload }])] };
 	}
 }
