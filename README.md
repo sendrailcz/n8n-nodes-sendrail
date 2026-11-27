@@ -35,9 +35,11 @@ Tips:
 
 ## Trigger
 
-1. Add **Sendrail Trigger**, choose the events, activate the workflow.
-2. Copy the **Production URL** into the "Webhook" field of your API key in the Sendrail dashboard and save. Sendrail has one webhook address per key.
-3. Copy the key's signing secret ("Podpisový klíč webhooku") into **Signing Secret**. Requests without a valid `X-Sendrail-Signature` are then refused.
+1. In the Sendrail dashboard (sendrail.cz/app → Keys) tick **Povolit správu webhooku přes API** at the API key and save it. Without it the key cannot change its own webhook and activation fails with an error that says so.
+2. Add **Sendrail Trigger**, pick the credential with that key, choose the events and activate the workflow. The node sets the key's webhook address itself and removes it when the workflow is deactivated.
+3. Nothing to copy: the node reads the key's signing secret from Sendrail and refuses every request without a valid `X-Sendrail-Signature`.
+
+A key has one webhook address. Use a separate key for each workflow with this trigger, and another key for "Listen for test event" – a test run points the key at the test address and clears it afterwards.
 
 The output item has `event` and the fields of the message or event, for example `{"event": "message.final", "id": "msg_…", "status": "sent", …}`.
 

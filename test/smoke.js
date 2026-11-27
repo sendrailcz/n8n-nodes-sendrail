@@ -33,7 +33,7 @@ async function run(params, answer = { ok: true }, opts = {}) {
 
 (async () => {
 	for (const f of [...pkg.n8n.nodes, ...pkg.n8n.credentials]) ok(require('fs').existsSync(f), 'built file exists: ' + f);
-	ok(require('fs').existsSync('dist/nodes/Sendrail/sendrail.png') && require('fs').existsSync('dist/credentials/sendrail.png'), 'icons are copied');
+	ok(require('fs').existsSync('dist/nodes/Sendrail/sendrail.svg') && require('fs').existsSync('dist/credentials/sendrail.svg'), 'icons are copied');
 	const cred = new SendrailApi();
 	ok(cred.name === 'sendrailApi' && cred.authenticate.properties.headers.Authorization.includes('Bearer'), 'credential sends the key as a Bearer header');
 
@@ -86,28 +86,60 @@ async function run(params, answer = { ok: true }, opts = {}) {
 	const sig = 'sha256=' + createHmac('sha256', 's3cret').update(raw).digest('hex');
 	ok(signatureOk('s3cret', raw, sig) && !signatureOk('other', raw, sig) && !signatureOk('s3cret', raw, undefined) && !signatureOk('s3cret', raw, 'sha256=00'), 'signature check');
 
-	async function hook(params, rawBody, headers) {
+	async function hook(params, rawBody, headers, secret) {
 		const sent = {};
 		const ctx = {
 			getRequestObject: () => ({ rawBody, headers }),
 			getResponseObject: () => ({ status: (c) => { sent.code = c; return { json: (b) => { sent.body = b; } }; } }),
 			getNodeParameter: (name, dflt) => get(params, name, dflt),
+			getWorkflowStaticData: () => (secret ? { secret } : {}),
 			getBodyData: () => JSON.parse(rawBody.toString()),
 			helpers: { returnJsonArray: (a) => a.map((json) => ({ json })) },
 		};
 		return { result: await new SendrailTrigger().webhook.call(ctx), sent };
 	}
-	let h = await hook({ events: ['message.final'], secret: 's3cret' }, raw, { 'x-sendrail-signature': sig });
+	let h = await hook({ events: ['message.final'] }, raw, { 'x-sendrail-signature': sig }, 's3cret');
 	ok(h.result.workflowData[0][0].json.event === 'message.final' && h.result.workflowData[0][0].json.id === 'msg_1' && h.result.workflowData[0][0].json.status === 'sent', 'trigger: a signed event starts the workflow with the message flattened');
-	h = await hook({ events: ['message.final'], secret: 's3cret' }, raw, { 'x-sendrail-signature': 'sha256=bad' });
+	h = await hook({ events: ['message.final'] }, raw, { 'x-sendrail-signature': 'sha256=bad' }, 's3cret');
 	ok(h.sent.code === 401 && h.result.noWebhookResponse && !h.result.workflowData, 'trigger: a wrong signature is refused');
-	h = await hook({ events: ['message.final'], secret: 's3cret' }, raw, {});
+	h = await hook({ events: ['message.final'] }, raw, {}, 's3cret');
 	ok(h.sent.code === 401, 'trigger: a missing signature is refused');
-	h = await hook({ events: ['message.received'], secret: '' }, raw, {});
+	h = await hook({ events: ['message.final'] }, raw, { 'x-sendrail-signature': sig }, '');
+	ok(h.sent.code === 401 && !h.result.workflowData, 'trigger: nothing gets in before the webhook is registered (no secret yet)');
+	h = await hook({ events: ['message.received'] }, raw, { 'x-sendrail-signature': sig }, 's3cret');
 	ok(h.sent.code === 200 && h.sent.body.ignored && !h.result.workflowData, 'trigger: an event that was not chosen is acknowledged and ignored');
 	const raw2 = Buffer.from('{"event":"message.received","data":{"id":812,"from":"+420777123456","message":"Yes"}}');
-	h = await hook({ events: ['message.received'], secret: '' }, raw2, {});
-	ok(h.result.workflowData[0][0].json.from === '+420777123456' && h.result.workflowData[0][0].json.event === 'message.received', 'trigger: a reply is passed on (no secret set)');
+	const sig2 = 'sha256=' + createHmac('sha256', 's3cret').update(raw2).digest('hex');
+	h = await hook({ events: ['message.received'] }, raw2, { 'x-sendrail-signature': sig2 }, 's3cret');
+	ok(h.result.workflowData[0][0].json.from === '+420777123456' && h.result.workflowData[0][0].json.event === 'message.received', 'trigger: a reply is passed on');
+
+	// trigger: registering the webhook at Sendrail
+	function life(server) {
+		const calls = [], data = {};
+		const ctx = {
+			getCredentials: async () => ({ apiKey: 'sr_test_x', baseUrl: 'https://api.example' }),
+			getNode: () => ({ name: 'Sendrail Trigger', type: 'sendrailTrigger', typeVersion: 1 }),
+			getNodeWebhookUrl: () => 'https://n8n.example/webhook/abc/webhook',
+			getWorkflowStaticData: () => data,
+			helpers: { httpRequestWithAuthentication: async function (name, o) { calls.push(o.method + ' ' + o.url + (o.body ? ' ' + JSON.stringify(o.body) : '')); return server(o); } },
+		};
+		return { ctx, calls, data, m: new SendrailTrigger().webhookMethods.default };
+	}
+	let state = { url: null, secret: 'whsec' };
+	const server = (o) => { if (o.method === 'PUT') state.url = o.body.url; if (o.method === 'DELETE') state.url = null; return { ...state }; };
+	let l = life(server);
+	ok((await l.m.checkExists.call(l.ctx)) === false && l.calls[0] === 'GET https://api.example/v1/webhook', 'trigger: a key without our address is not registered yet');
+	ok((await l.m.create.call(l.ctx)) === true && state.url === 'https://n8n.example/webhook/abc/webhook' && l.data.secret === 'whsec', 'trigger: activation sets the address and keeps the signing secret');
+	ok((await l.m.checkExists.call(l.ctx)) === true, 'trigger: our address is recognised');
+	ok((await l.m.delete.call(l.ctx)) === true && state.url === null && !('secret' in l.data), 'trigger: deactivation removes the address and the secret');
+	state.url = 'https://somebody.example/else';
+	l = life(server);
+	await l.m.delete.call(l.ctx);
+	ok(state.url === 'https://somebody.example/else' && !l.calls.some((c) => c.startsWith('DELETE')), "trigger: somebody else's address on the key is left alone");
+	l = life(() => { throw { response: { status: 403, data: { error: { code: 'webhook_api_disabled', message: 'no' } } } }; });
+	let whSaid = '';
+	try { await l.m.create.call(l.ctx); } catch (e) { whSaid = e.message; }
+	ok(/not allowed to manage its webhook/.test(whSaid) && /Povolit správu webhooku přes API/.test(whSaid), 'trigger: a key without the switch gets an error that says what to tick');
 
 	console.log(`\nALL PASS (${passed})`);
 })().catch((e) => { console.error('FAIL  ' + e.message); process.exit(1); });

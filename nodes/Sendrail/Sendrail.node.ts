@@ -7,7 +7,7 @@ import type {
 	INodeTypeDescription,
 	JsonObject,
 } from 'n8n-workflow';
-import { NodeApiError, NodeOperationError } from 'n8n-workflow';
+import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
 async function call(
 	ctx: IExecuteFunctions,
@@ -61,14 +61,14 @@ export class Sendrail implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Sendrail',
 		name: 'sendrail',
-		icon: 'file:sendrail.png',
+		icon: 'file:sendrail.svg',
 		group: ['output'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description: 'Send SMS and verification codes, check numbers and manage opt-outs with Sendrail',
 		defaults: { name: 'Sendrail' },
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
 		usableAsTool: true,
 		credentials: [{ name: 'sendrailApi', required: true }],
 		properties: [
@@ -453,7 +453,7 @@ export class Sendrail implements INodeType {
 					});
 					continue;
 				}
-				if (error instanceof NodeOperationError) throw error;
+				if (error instanceof NodeOperationError) throw new NodeOperationError(this.getNode(), error, { itemIndex: i });
 				throw new NodeApiError(
 					this.getNode(),
 					error as JsonObject,

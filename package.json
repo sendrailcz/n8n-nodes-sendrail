@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-sendrail",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "n8n node for Sendrail: send SMS and verification codes (OTP), check numbers, manage opt-outs and receive delivery and reply events",
   "keywords": ["n8n-community-node-package", "sms", "otp", "sendrail", "verification"],
   "license": "MIT",
@@ -11,7 +11,7 @@
   "engines": { "node": ">=20.15" },
   "main": "index.js",
   "scripts": {
-    "build": "rm -rf dist && tsc && cp nodes/Sendrail/*.png dist/nodes/Sendrail/ && cp nodes/Sendrail/*.png dist/credentials/",
+    "build": "rm -rf dist && tsc && cp nodes/Sendrail/*.svg dist/nodes/Sendrail/ && cp nodes/Sendrail/*.svg dist/credentials/",
     "test": "npm run build && node test/smoke.js",
     "prepublishOnly": "npm test"
   },
